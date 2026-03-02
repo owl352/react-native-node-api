@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import fs from "node:fs";
 import { packageDirectorySync } from "pkg-dir";
-import { NormalizedPackageJson, readPackageSync } from "read-pkg";
+import { readPackageSync } from "read-pkg";
 import { createRequire } from "node:module";
+import * as zod from "zod";
 
 import { chalk, prettyPath } from "@react-native-node-api/cli-utils";
 
@@ -294,31 +295,44 @@ export function visualizeLibraryMap(libraryMap: LibraryMap) {
   return result.join("\n");
 }
 
+export const ReactNativeNodeAPIConfigurationSchema = zod.object({
+  reactNativeNodeApi: zod
+    .object({
+      scan: zod
+        .object({
+          dependencies: zod.array(zod.string()).optional(),
+        })
+        .optional(),
+    })
+    .optional(),
+});
+
+export const PackageJsonDependenciesSchema = zod.object({
+  dependencies: zod.record(zod.string(), zod.string()).optional(),
+});
+
+export type ReactNativeNodeAPIConfiguration = zod.infer<
+  typeof ReactNativeNodeAPIConfigurationSchema
+>;
+export type PackageJsonDependencies = zod.infer<
+  typeof PackageJsonDependenciesSchema
+>;
+
+type PackageJsonWithNodeApi = PackageJsonDependencies &
+  ReactNativeNodeAPIConfiguration;
+
 export function findPackageConfigurationByPath(
   fromPath: string,
 ): ReactNativeNodeAPIConfiguration {
   const packageRoot = packageDirectorySync({ cwd: fromPath });
   assert(packageRoot, `Could not find package root from ${fromPath}`);
 
-  const {
-    reactNativeNodeApi,
-  }: NormalizedPackageJson & ReactNativeNodeAPIConfiguration = readPackageSync({
+  const packageJson = readPackageSync({
     cwd: packageRoot,
   });
 
-  return { reactNativeNodeApi };
+  return ReactNativeNodeAPIConfigurationSchema.parse(packageJson);
 }
-
-export interface ReactNativeNodeAPIConfiguration {
-  reactNativeNodeApi?: {
-    scan?: {
-      dependencies?: string[];
-    };
-  };
-}
-
-type PackageJsonWithNodeApi = NormalizedPackageJson &
-  ReactNativeNodeAPIConfiguration;
 
 /**
  * Search upwards from a directory to find a package.json and
@@ -333,9 +347,14 @@ export function findPackageDependencyPaths(
 
   const requireFromRoot = createRequire(path.join(packageRoot, "noop.js"));
 
-  const { dependencies = {}, reactNativeNodeApi } = readPackageSync({
+  const packageJson = readPackageSync({
     cwd: packageRoot,
   }) as PackageJsonWithNodeApi;
+
+  const { dependencies = {} } =
+    PackageJsonDependenciesSchema.parse(packageJson);
+  const { reactNativeNodeApi } =
+    ReactNativeNodeAPIConfigurationSchema.parse(packageJson);
 
   const initialDeps = Object.keys(dependencies).concat(
     reactNativeNodeApi?.scan?.dependencies ?? [],
