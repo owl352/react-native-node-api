@@ -345,7 +345,9 @@ export function findPackageDependencyPaths(
   const packageRoot = packageDirectorySync({ cwd: fromPath });
   assert(packageRoot, `Could not find package root from ${fromPath}`);
 
-  const requireFromRoot = createRequire(path.join(packageRoot, "noop.js"));
+  const requireFromRoot: NodeRequire = createRequire(
+    path.join(packageRoot, "noop.js"),
+  );
 
   const packageJson = readPackageSync({
     cwd: packageRoot,
@@ -360,27 +362,37 @@ export function findPackageDependencyPaths(
     reactNativeNodeApi?.scan?.dependencies ?? [],
   );
 
-  return Object.fromEntries(
-    initialDeps.flatMap((name) => {
-      const root = resolvePackageRoot(requireFromRoot, name);
-      if (!root) return [];
+  const result: Record<string, string> = {};
+  const visited = new Set<string>();
+  const queue: Array<string> = [...initialDeps];
 
-      const nested =
-        findPackageConfigurationByPath(root)?.reactNativeNodeApi?.scan
-          ?.dependencies ?? [];
+  while (queue.length > 0) {
+    const name = queue.shift()!;
 
-      const nestedEntries = nested
-        .map((nestedName) => {
-          const nestedRoot = resolvePackageRoot(requireFromRoot, nestedName);
-          return nestedRoot
-            ? ([nestedName, nestedRoot] as [string, string])
-            : null;
-        })
-        .filter((entry): entry is [string, string] => entry !== null);
+    if (visited.has(name)) {
+      continue;
+    }
+    visited.add(name);
 
-      return [[name, root] as [string, string], ...nestedEntries];
-    }),
-  );
+    const root = resolvePackageRoot(requireFromRoot, name);
+    if (!root) {
+      continue;
+    }
+
+    result[name] = root;
+
+    const config = findPackageConfigurationByPath(root);
+    const nestedDependencies =
+      config?.reactNativeNodeApi?.scan?.dependencies ?? [];
+
+    for (const nestedName of nestedDependencies) {
+      if (!visited.has(nestedName)) {
+        queue.push(nestedName);
+      }
+    }
+  }
+
+  return result;
 }
 
 export const MAGIC_FILENAME = "react-native-node-api-module";
