@@ -491,7 +491,7 @@ describe("findNodeApiModulePathsByDependency", () => {
   });
 });
 
-describe("findNodeApiModulePathsByConfiguration", () => {
+describe("findNodeApiModulePathsByDependency", () => {
   it("should find Node-API paths by dependency in root package.json configuration (excluding certain packages)", async (context) => {
     const packagesNames = ["lib-a", "lib-b", "lib-c", "lib-d", "lib-e"];
     const tempDir = setupTempDirectory(context, {
