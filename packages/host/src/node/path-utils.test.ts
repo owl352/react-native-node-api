@@ -657,25 +657,31 @@ describe("findNodeApiModulePathsByDependency", () => {
         ),
       }),
       ...Object.fromEntries(
-        packagesNames.slice(1).map((packageName, i) => [
-          `app/node_modules/${packageName}`,
-          {
-            "package.json": JSON.stringify({
-              name: packageName,
-              main: "index.js",
-              reactNativeNodeApi: {
-                scan: {
-                  dependencies:
-                    packagesNames[i + ((i % 2) * 2 - 1)] != null
-                      ? [packagesNames[i + ((i % 2) * 2 - 1)]]
-                      : [],
+        packagesNames.slice(1).map((packageName, i) => {
+          // if even then i-1
+          // if not even then i+1
+          const dependencyIndex = i + ((i % 2) * 2 - 1)
+
+          return [
+            `app/node_modules/${packageName}`,
+            {
+              "package.json": JSON.stringify({
+                name: packageName,
+                main: "index.js",
+                reactNativeNodeApi: {
+                  scan: {
+                    dependencies:
+                      packagesNames[dependencyIndex] != null
+                        ? [packagesNames[dependencyIndex]]
+                        : [],
+                  },
                 },
-              },
-            }),
-            "index.js": "",
-            "addon.apple.node/react-native-node-api-module": "",
-          },
-        ]),
+              }),
+              "index.js": "",
+              "addon.apple.node/react-native-node-api-module": "",
+            },
+          ];
+        }),
       ),
     });
 
