@@ -541,6 +541,52 @@ describe("findNodeApiModulePathsByDependency", () => {
     });
   });
 
+  it("should find Node-API paths by dependency in root package.json configuration with incorrect dependency configuration (excluding certain packages)", async (context) => {
+    const packagesNames = ["lib-a", "lib-b", "lib-c", "lib-d"];
+    const tempDir = setupTempDirectory(context, {
+      "app/package.json": JSON.stringify({
+        name: "app",
+        dependencies: Object.fromEntries(
+          packagesNames
+            .slice(0, 2)
+            .map((packageName) => [packageName, "^1.0.0"]),
+        ),
+        reactNativeNodeApi: {
+          scan: {
+            dependencies: ["lib-e"],
+          },
+        },
+      }),
+      ...Object.fromEntries(
+        packagesNames.map((packageName) => [
+          `app/node_modules/${packageName}`,
+          {
+            "package.json": JSON.stringify({
+              name: packageName,
+              main: "index.js",
+            }),
+            "index.js": "",
+            "addon.apple.node/react-native-node-api-module": "",
+          },
+        ]),
+      ),
+    });
+
+    // shouldn't find lib-e
+    const result = await findNodeApiModulePathsByDependency({
+      fromPath: path.join(tempDir, "app"),
+      platform: "apple",
+      includeSelf: false,
+      excludePackages: ["lib-a"],
+    });
+    assert.deepEqual(result, {
+      "lib-b": {
+        path: path.join(tempDir, "app/node_modules/lib-b"),
+        modulePaths: ["addon.apple.node"],
+      },
+    });
+  });
+
   it("should find Node-API paths by dependency in child modules configuration (excluding certain packages)", async (context) => {
     const packagesNames = ["lib-a", "lib-b", "lib-c", "lib-d", "lib-e"];
     const tempDir = setupTempDirectory(context, {

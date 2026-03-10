@@ -376,6 +376,7 @@ export function findPackageDependencyPaths(
 
     const root = resolvePackageRoot(requireFromRoot, name);
     if (!root) {
+      console.warn(`Cannot find package root from ${fromPath} for ${name}`);
       continue;
     }
 
