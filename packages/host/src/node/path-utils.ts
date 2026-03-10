@@ -321,6 +321,21 @@ export type PackageJsonDependencies = zod.infer<
 type PackageJsonWithNodeApi = PackageJsonDependencies &
   ReactNativeNodeAPIConfiguration;
 
+export function parseReactNativeNodeAPIConfigurationSchema(
+  packageJson: PackageJsonWithNodeApi,
+): ReactNativeNodeAPIConfiguration {
+  const parsed = ReactNativeNodeAPIConfigurationSchema.safeParse(packageJson);
+
+  if (!parsed.success) {
+    console.warn("Invalid reactNativeNodeApi configuration");
+    console.warn(JSON.stringify(packageJson));
+    console.warn(parsed.error.message);
+    return {};
+  }
+
+  return parsed.data;
+}
+
 export function findPackageConfigurationByPath(
   fromPath: string,
 ): ReactNativeNodeAPIConfiguration {
@@ -331,7 +346,7 @@ export function findPackageConfigurationByPath(
     cwd: packageRoot,
   });
 
-  return ReactNativeNodeAPIConfigurationSchema.parse(packageJson);
+  return parseReactNativeNodeAPIConfigurationSchema(packageJson);
 }
 
 /**
@@ -356,7 +371,7 @@ export function findPackageDependencyPaths(
   const { dependencies = {} } =
     PackageJsonDependenciesSchema.parse(packageJson);
   const { reactNativeNodeApi } =
-    ReactNativeNodeAPIConfigurationSchema.parse(packageJson);
+    parseReactNativeNodeAPIConfigurationSchema(packageJson);
 
   const initialDeps = Object.keys(dependencies).concat(
     reactNativeNodeApi?.scan?.dependencies ?? [],
